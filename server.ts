@@ -55,6 +55,63 @@ function requireAuth(req: AuthRequest, res: express.Response, next: express.Next
 
 /* ================= AUTHENTICATION & PROGRESS ENDPOINTS ================= */
 
+// POST /api/pilot-login: direct login by pilot callsign/name (no password barrier required)
+app.post('/api/pilot-login', async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Please enter your pilot name' });
+    }
+
+    const trimmedName = name.trim().slice(0, 40);
+    const safeSlug = trimmedName.toLowerCase().replace(/[^a-z0-9_]/g, '_') || 'pilot';
+    const pilotEmail = `${safeSlug}@gitnaut.space`;
+
+    // Check if pilot already exists
+    let user = db.prepare('SELECT id, email, created_at FROM users WHERE email = ?').get(pilotEmail) as
+      | { id: string; email: string; created_at: string }
+      | undefined;
+
+    let userId: string;
+    let createdAt: string;
+
+    if (user) {
+      userId = user.id;
+      createdAt = user.created_at;
+    } else {
+      userId = randomUUID();
+      createdAt = new Date().toISOString();
+      const mockHash = await bcrypt.hash('pilot_secure_hash', 10);
+      db.prepare('INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)').run(
+        userId,
+        pilotEmail,
+        mockHash,
+        createdAt
+      );
+    }
+
+    const token = jwt.sign({ userId, email: pilotEmail }, JWT_SECRET, { expiresIn: '30d' });
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.json({
+      user: {
+        id: userId,
+        email: pilotEmail,
+        created_at: createdAt,
+        displayName: trimmedName,
+      },
+    });
+  } catch (err: any) {
+    console.error('Pilot login error:', err);
+    return res.status(500).json({ error: 'Server error during pilot login' });
+  }
+});
+
 // POST /api/signup: validate email + password (min 8 chars), hash with bcrypt, insert.
 // If the email already exists, return 409 "Account already exists".
 app.post('/api/signup', async (req, res) => {

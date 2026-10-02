@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { GIT_STAGES } from './data/gitStages';
 import { StageId } from './types/git';
 import { loadProgress, toggleLearnedState, resetProgress } from './utils/storage';
-import { getCurrentUser, isGuestMode, setGuestMode, fetchCurrentUser, logoutUser, saveBackendProgress, UserProfile } from './utils/auth';
+import { getCurrentUser, isGuestMode, setGuestMode, fetchCurrentUser, logoutUser, saveBackendProgress, loginWithPilotName, UserProfile } from './utils/auth';
 import { subscribeToActivity } from './utils/activityEvents';
 import { playSound } from './utils/sound';
 import { Header } from './components/Header';
@@ -180,6 +180,12 @@ export default function App() {
         onStartFree={() => setShowLoginScreen(true)}
         onLogInClick={() => setShowLoginScreen(true)}
         onExploreGuest={handleGuestEntry}
+        onPilotLogin={async (pilotName: string) => {
+          const res = await loginWithPilotName(pilotName);
+          if (res.success && res.user) {
+            handleUserLoggedIn(res.user);
+          }
+        }}
       />
     );
   }

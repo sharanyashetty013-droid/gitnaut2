@@ -132,6 +132,73 @@ export async function fetchCurrentUser(): Promise<UserProfile | null> {
 }
 
 /**
+ * Authenticate directly with Pilot Name (no password barrier)
+ */
+export async function loginWithPilotName(
+  pilotName: string
+): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
+  const trimmed = pilotName.trim();
+  if (!trimmed) {
+    return { success: false, error: 'Please enter your name, pilot.' };
+  }
+
+  try {
+    const res = await fetch('/api/pilot-login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ name: trimmed }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { success: false, error: data.error || 'Failed to authenticate pilot' };
+    }
+
+    if (data.user) {
+      let progressList: BackendProgress[] = [];
+      try {
+        const pRes = await fetch('/api/progress', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (pRes.ok) {
+          const pData = await pRes.json();
+          progressList = pData.progress || [];
+        }
+      } catch {
+        // ignore
+      }
+
+      const profile = buildUserProfile(data.user, progressList);
+      profile.displayName = trimmed;
+      profile.username = trimmed;
+      inMemoryUser = profile;
+      guestSessionActive = false;
+      return { success: true, user: profile };
+    }
+
+    return { success: false, error: 'Invalid response from server' };
+  } catch {
+    const profile = buildUserProfile(
+      {
+        id: 'usr_' + Date.now(),
+        email: `${trimmed.toLowerCase().replace(/\s+/g, '_')}@gitnaut.space`,
+        created_at: new Date().toISOString(),
+      },
+      []
+    );
+    profile.displayName = trimmed;
+    profile.username = trimmed;
+    inMemoryUser = profile;
+    guestSessionActive = false;
+    return { success: true, user: profile };
+  }
+}
+
+/**
  * Authenticate with real backend POST /api/login
  */
 export async function authenticateWithEmail(

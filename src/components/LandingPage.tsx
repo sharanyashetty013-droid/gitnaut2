@@ -10,7 +10,8 @@ import {
   GitCommit, 
   ShieldCheck, 
   Compass, 
-  ChevronDown 
+  ChevronDown,
+  User 
 } from 'lucide-react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -26,12 +27,15 @@ interface LandingPageProps {
   onStartFree: () => void;
   onLogInClick: () => void;
   onExploreGuest: () => void;
+  onPilotLogin?: (pilotName: string) => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onStartFree,
   onExploreGuest,
+  onPilotLogin,
 }) => {
+  const [heroPilotName, setHeroPilotName] = useState('');
   const [scrollProgress, setScrollProgress] = useState(0);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
@@ -217,16 +221,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
           <div className="flex items-center gap-3 shrink-0">
             <button
-              onClick={() => triggerWarpTo('login')}
+              onClick={() => triggerWarpTo('guest')}
               className="text-sm font-semibold text-text-muted hover:text-text transition-colors cursor-pointer px-3 py-2 min-h-[44px] flex items-center"
             >
-              Log in
+              Guest mode
             </button>
             <button
               onClick={() => triggerWarpTo('login')}
               className="btn-primary text-sm px-4 py-2"
             >
-              Start free
+              Launch Flight Deck
             </button>
           </div>
         </div>
@@ -255,22 +259,51 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 Troubleshoot detached HEADs, resolve parallel branch collisions, and navigate your commit tree in an intuitive celestial flight deck.
               </p>
 
-              {/* Action Buttons: Min 44px height */}
-              <div className="hero-anim flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
-                <button
-                  onClick={() => triggerWarpTo('login')}
-                  className="btn-primary text-sm py-3.5 px-6 shadow-sm gap-2"
+              {/* Direct Pilot Callsign Launch */}
+              <div className="hero-anim space-y-3 pt-2">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (heroPilotName.trim() && onPilotLogin) {
+                      playSound('click');
+                      onPilotLogin(heroPilotName.trim());
+                    } else {
+                      triggerWarpTo('login');
+                    }
+                  }}
+                  className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 max-w-md"
                 >
-                  <span>Start free</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => triggerWarpTo('guest')}
-                  className="btn-secondary text-sm py-3 px-5 gap-2"
-                >
-                  <Gamepad2 className="w-4 h-4 text-link" />
-                  <span>Explore as guest</span>
-                </button>
+                  <div className="relative flex-1">
+                    <User className="w-5 h-5 absolute left-3.5 top-3.5 text-text-muted" strokeWidth={1.75} />
+                    <input
+                      type="text"
+                      value={heroPilotName}
+                      onChange={(e) => setHeroPilotName(e.target.value)}
+                      placeholder="What is your name, pilot?"
+                      aria-label="What is your name, pilot?"
+                      style={{ fontSize: '16px' }}
+                      className="w-full pl-11 pr-3 py-3 rounded-[12px] border border-border bg-surface-2 text-text placeholder-text-muted focus:outline-none focus:border-accent min-h-[44px]"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="btn-primary text-sm py-3 px-5 shadow-sm gap-2 shrink-0 cursor-pointer min-h-[44px]"
+                  >
+                    <span>Launch</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </form>
+
+                <div className="flex items-center gap-3 text-xs text-text-muted">
+                  <span>or</span>
+                  <button
+                    type="button"
+                    onClick={() => triggerWarpTo('guest')}
+                    className="text-link hover:underline cursor-pointer font-medium"
+                  >
+                    Explore as guest without entering a name
+                  </button>
+                </div>
               </div>
 
               {/* Benefit highlights */}
@@ -455,17 +488,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 max-w-md mx-auto">
               <button
                 onClick={() => triggerWarpTo('login')}
-                className="btn-primary text-sm px-8 py-4 gap-2"
+                className="btn-primary text-sm px-8 py-3.5 gap-2 w-full sm:w-auto"
               >
-                <span>Start free</span>
+                <span>Launch Flight Deck</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
               <button
                 onClick={() => triggerWarpTo('guest')}
-                className="btn-secondary text-sm px-6 py-4"
+                className="btn-secondary text-sm px-6 py-3.5 w-full sm:w-auto"
               >
                 Continue as guest
               </button>
