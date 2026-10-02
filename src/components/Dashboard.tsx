@@ -29,12 +29,15 @@ interface DashboardProps {
   onSelectStage: (stageId: StageId, targetCommandId?: string) => void;
   onOpenGame: () => void;
   onOpenAuth: () => void;
+  onExitGuest?: () => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
   currentUser,
   onSelectStage,
   onOpenGame,
+  onOpenAuth,
+  onExitGuest,
 }) => {
   const [stats, setStats] = useState(() => getAggregatedStats());
   const [showMoreSections, setShowMoreSections] = useState(false);
@@ -80,7 +83,39 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <div className="w-full space-y-8 min-w-0 font-sans">
+    <div className="w-full space-y-6 sm:space-y-8 min-w-0 font-sans">
+      {/* GUEST MODE CALLOUT BANNER */}
+      {currentUser?.displayName?.toLowerCase() === 'guest' && (
+        <div className="p-3.5 sm:p-4 rounded-[12px] bg-accent/10 border border-accent/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs sm:text-sm">
+          <div className="flex items-center gap-2.5 text-text">
+            <span className="w-2.5 h-2.5 rounded-full bg-accent animate-pulse shrink-0" />
+            <span>
+              You are currently exploring as <strong>Guest</strong>. Want to enter your callsign or return to the landing page?
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+            <button
+              onClick={() => {
+                playSound('click');
+                onOpenAuth();
+              }}
+              className="btn-primary text-xs py-2 px-3.5 min-h-[36px] flex-1 sm:flex-initial justify-center"
+            >
+              Enter Your Name
+            </button>
+            <button
+              onClick={() => {
+                playSound('click');
+                if (onExitGuest) onExitGuest();
+              }}
+              className="btn-secondary text-xs py-2 px-3.5 min-h-[36px] flex-1 sm:flex-initial justify-center border-border hover:border-danger hover:text-danger"
+            >
+              Exit to 1st Page
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 1. TOP HERO */}
       <section className="pt-2 pb-6 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 min-w-0">
         <div className="space-y-1.5 min-w-0 max-w-2xl">

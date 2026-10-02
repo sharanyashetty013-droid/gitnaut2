@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
 import { User, ArrowRight, X, AlertCircle, Compass, Sparkles } from 'lucide-react';
-import { 
-  UserProfile, 
-  loginWithPilotName, 
-  setGuestMode 
-} from '../utils/auth';
+import { UserProfile, launchPilot, setGuestMode } from '../utils/auth';
 import { playSound } from '../utils/sound';
 
 interface LoginScreenProps {
@@ -22,9 +18,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 }) => {
   const [pilotName, setPilotName] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
@@ -35,29 +30,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       return;
     }
 
-    setIsLoading(true);
-
-    try {
-      const res = await loginWithPilotName(trimmed);
-      if (res.success && res.user) {
-        playSound('success');
-        onLoginSuccess(res.user);
-      } else {
-        setErrorMessage(res.error || 'Failed to authenticate pilot.');
-        playSound('error');
-      }
-    } catch {
-      setErrorMessage('An unexpected error occurred. Please try again.');
-      playSound('error');
-    } finally {
-      setIsLoading(false);
-    }
+    playSound('success');
+    const user = launchPilot(trimmed);
+    onLoginSuccess(user);
   };
 
   const handleGuestClick = () => {
     playSound('pop');
-    setGuestMode(true);
-    onContinueAsGuest();
+    const guestUser = setGuestMode(true);
+    if (onLoginSuccess) {
+      onLoginSuccess(guestUser);
+    } else {
+      onContinueAsGuest();
+    }
   };
 
   const cardClasses = `relative w-full max-w-md bg-surface border border-border rounded-xl p-6 sm:p-8 shadow-2xl text-text font-sans min-w-0 ${
@@ -124,7 +109,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               onChange={(e) => setPilotName(e.target.value)}
               placeholder="e.g. Maverick, Sarah, Neo, Cadet Alex..."
               style={{ fontSize: '16px' }}
-              className="w-full pl-11 pr-3 py-3 rounded-[10px] border border-border bg-surface-2 text-text placeholder-text-muted focus:outline-none focus:border-accent min-h-[44px]"
+              className="w-full pl-11 pr-3 py-3 rounded-[12px] border border-border bg-surface-2 text-text placeholder-text-muted focus:outline-none focus:border-accent min-h-[44px]"
             />
           </div>
         </div>
@@ -132,10 +117,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         {/* Primary Launch Button */}
         <button
           type="submit"
-          disabled={isLoading || !pilotName.trim()}
-          className="btn-primary w-full text-sm font-bold py-3.5 shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+          disabled={!pilotName.trim()}
+          className="btn-primary w-full text-sm font-bold py-3.5 shadow-md disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
         >
-          <span>{isLoading ? 'Authorizing Flight...' : 'Launch Flight Deck'}</span>
+          <span>Launch Flight Deck</span>
           <ArrowRight className="w-4 h-4" strokeWidth={2} />
         </button>
       </form>
@@ -147,7 +132,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           onClick={handleGuestClick}
           className="text-xs text-text-muted hover:text-link font-medium underline underline-offset-4 cursor-pointer min-h-[44px] inline-flex items-center"
         >
-          Explore as guest without entering a name
+          Explore as guest (uses "Guest" callsign)
         </button>
       </div>
     </div>

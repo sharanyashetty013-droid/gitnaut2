@@ -21,9 +21,12 @@ import { Astronaut3D } from './Astronaut3D';
 import { AskGitnautAI } from './AskGitnautAI';
 import { playSound } from '../utils/sound';
 
+import { UserProfile } from '../utils/auth';
+
 gsap.registerPlugin(ScrollTrigger);
 
 interface LandingPageProps {
+  currentUser?: UserProfile | null;
   onStartFree: () => void;
   onLogInClick: () => void;
   onExploreGuest: () => void;
@@ -31,6 +34,7 @@ interface LandingPageProps {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
+  currentUser,
   onStartFree,
   onExploreGuest,
   onPilotLogin,
@@ -197,12 +201,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 w-full bg-surface/90 backdrop-blur-md border-b border-border transition-colors">
-        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4 min-w-0">
-          <div className="flex items-center gap-2.5 shrink-0">
-            <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-accent-ink shadow-xs">
+        <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-accent-ink shadow-xs shrink-0">
               <Compass className="w-5 h-5 text-accent-ink" strokeWidth={1.75} />
             </div>
-            <span className="font-heading text-xl font-bold tracking-normal text-text">
+            <span className="font-heading text-lg sm:text-xl font-bold tracking-normal text-text truncate">
               Gitnaut
             </span>
           </div>
@@ -219,19 +223,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </a>
           </nav>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <button
-              onClick={() => triggerWarpTo('guest')}
-              className="text-sm font-semibold text-text-muted hover:text-text transition-colors cursor-pointer px-3 py-2 min-h-[44px] flex items-center"
-            >
-              Guest mode
-            </button>
-            <button
-              onClick={() => triggerWarpTo('login')}
-              className="btn-primary text-sm px-4 py-2"
-            >
-              Launch Flight Deck
-            </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {currentUser?.displayName ? (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-[10px] bg-surface-2 border border-border text-xs sm:text-sm font-semibold text-text max-w-[130px] sm:max-w-[180px]">
+                <span className="w-2 h-2 rounded-full bg-success shrink-0" />
+                <span className="truncate">{currentUser.displayName}</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => triggerWarpTo('guest')}
+                className="text-xs sm:text-sm font-semibold text-text-muted hover:text-text transition-colors cursor-pointer px-3 py-2 min-h-[44px] flex items-center rounded-[8px] hover:bg-surface-2 border border-border"
+                aria-label="Continue in Guest mode"
+              >
+                Guest mode
+              </button>
+            )}
           </div>
         </div>
       </header>

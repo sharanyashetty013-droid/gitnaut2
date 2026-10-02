@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { GIT_STAGES } from './data/gitStages';
 import { StageId } from './types/git';
-import { loadProgress, toggleLearnedState, resetProgress } from './utils/storage';
-import { getCurrentUser, isGuestMode, setGuestMode, fetchCurrentUser, logoutUser, saveBackendProgress, loginWithPilotName, UserProfile } from './utils/auth';
-import { subscribeToActivity } from './utils/activityEvents';
+import { loadProgress, toggleLearnedState, resetProgress, subscribeToStorage } from './utils/storage';
+import { getCurrentUser, isGuestMode, setGuestMode, launchPilot, logoutUser, UserProfile } from './utils/auth';
 import { playSound } from './utils/sound';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
@@ -11,6 +10,7 @@ import { StageView } from './components/StageView';
 import { CheatSheetView } from './components/CheatSheetView';
 import { CelebrationToast } from './components/CelebrationToast';
 import { ResetModal } from './components/ResetModal';
+import { SettingsModal } from './components/SettingsModal';
 import { GitGame } from './components/GitGame';
 import { LandingPage } from './components/LandingPage';
 import { LoginScreen } from './components/LoginScreen';
@@ -23,7 +23,6 @@ import { applyTheme } from './utils/theme';
 export default function App() {
   const [progress, setProgress] = useState(loadProgress);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => getCurrentUser());
-  const [isGuest, setIsGuest] = useState<boolean>(() => isGuestMode());
   const [showLoginScreen, setShowLoginScreen] = useState(false);
 
   // App navigation views: 'learn' | 'practice' | 'cheatsheet' | 'admin'
@@ -37,30 +36,29 @@ export default function App() {
 
   const [celebrationStage, setCelebrationStage] = useState<string | null>(null);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // Automatically apply designated theme:
-  // Before login (Landing Page & Login Screen): Dark cosmic theme
-  // After login (Inside Flight Deck, Lessons, Missions, etc.): Light blue theme
+  // Before onboarding (Landing Page & Login Screen): Dark cosmic theme
+  // After onboarding (Inside Flight Deck, Lessons, Missions, etc.): Light blue theme
   useEffect(() => {
-    if (currentUser || isGuest) {
+    if (currentUser) {
       applyTheme('light-blue');
     } else {
       applyTheme('dark');
     }
-  }, [currentUser, isGuest]);
+  }, [currentUser]);
 
   useEffect(() => {
     setProgress(loadProgress());
-    fetchCurrentUser().then((user) => {
-      if (user) {
-        setCurrentUser(user);
-      }
-    });
-    const unsub = subscribeToActivity(() => {
+    const user = getCurrentUser();
+    if (user) {
+      setCurrentUser(user);
+    }
+    const unsub = subscribeToStorage(() => {
       setProgress(loadProgress());
-      const u = getCurrentUser();
-      if (u) setCurrentUser(u);
+      setCurrentUser(getCurrentUser());
     });
     return unsub;
   }, []);
@@ -68,19 +66,13 @@ export default function App() {
   const handleToggleLearned = (commandId: string) => {
     const res = toggleLearnedState(commandId);
     setProgress(res.progress);
-    if (currentUser) {
-      saveBackendProgress([{
-        mission_id: commandId,
-        mastery: res.isNowLearned ? 1 : 0,
-        streak: res.progress.streakDates.length,
-      }]);
+    const u = getCurrentUser();
+    if (u) {
+      setCurrentUser(u);
     }
     if (res.stageJustCompleted) {
       playSound('levelUp');
       setCelebrationStage(res.stageJustCompleted);
-      if (currentUser) {
-        setCurrentUser(getCurrentUser());
-      }
     }
   };
 
@@ -128,31 +120,28 @@ export default function App() {
   };
 
   const handleConfirmReset = () => {
-    resetProgress();
+    resetProgress(false);
     setProgress(loadProgress());
     setIsResetModalOpen(false);
     playSound('error');
-    if (currentUser) {
-      setCurrentUser(getCurrentUser());
-    }
+    setCurrentUser(getCurrentUser());
   };
 
   const handleUserLoggedIn = (user: UserProfile) => {
     setCurrentUser(user);
-    setIsGuest(false);
     setShowLoginScreen(false);
     setIsLoginModalOpen(false);
   };
 
-  const handleUserLoggedOut = async () => {
-    await logoutUser();
+  const handleUserLoggedOut = () => {
+    logoutUser();
     setCurrentUser(null);
-    setIsGuest(false);
+    setShowLoginScreen(false);
   };
 
   const handleGuestEntry = () => {
-    setGuestMode(true);
-    setIsGuest(true);
+    const guestUser = setGuestMode(true);
+    setCurrentUser(guestUser);
     setShowLoginScreen(false);
   };
 
@@ -165,8 +154,8 @@ export default function App() {
       ? GIT_STAGES[currentStageIndex + 1]
       : null;
 
-  // 1. If not logged in and not guest:
-  if (!currentUser && !isGuest) {
+  // 1. If no callsign in localStorage, show LandingPage or Callsign Onboarding:
+  if (!currentUser) {
     if (showLoginScreen) {
       return (
         <LoginScreen
@@ -177,20 +166,19 @@ export default function App() {
     }
     return (
       <LandingPage
+        currentUser={currentUser}
         onStartFree={() => setShowLoginScreen(true)}
         onLogInClick={() => setShowLoginScreen(true)}
         onExploreGuest={handleGuestEntry}
-        onPilotLogin={async (pilotName: string) => {
-          const res = await loginWithPilotName(pilotName);
-          if (res.success && res.user) {
-            handleUserLoggedIn(res.user);
-          }
+        onPilotLogin={(pilotName: string) => {
+          const user = launchPilot(pilotName);
+          handleUserLoggedIn(user);
         }}
       />
     );
   }
 
-  // 2. In-App Experience
+  // 2. In-App Experience: Onboarding skipped when callsign exists
   return (
     <div className="min-h-[100dvh] bg-bg text-text relative flex flex-col font-sans selection:bg-accent selection:text-accent-ink overflow-x-hidden transition-colors">
       {/* Background Subtle Cosmos */}
@@ -206,6 +194,7 @@ export default function App() {
         onNavigateCheatSheet={handleNavigateCheatSheet}
         onNavigateAdmin={handleNavigateAdmin}
         onResetProgress={() => setIsResetModalOpen(true)}
+        onOpenSettings={() => setIsSettingsModalOpen(true)}
         onOpenAuth={() => setIsLoginModalOpen(true)}
         onUserLoggedOut={handleUserLoggedOut}
       />
@@ -230,7 +219,8 @@ export default function App() {
               currentUser={currentUser}
               onSelectStage={handleSelectStage}
               onOpenGame={() => handleNavigatePractice('campaign')}
-              onOpenAuth={() => setIsLoginModalOpen(true)}
+              onOpenAuth={() => setIsSettingsModalOpen(true)}
+              onExitGuest={handleUserLoggedOut}
             />
           )
         )}
@@ -296,6 +286,13 @@ export default function App() {
             >
               Cheat sheet
             </button>
+            <span aria-hidden="true" className="text-border">•</span>
+            <button
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="hover:text-text transition-colors cursor-pointer min-h-[36px] flex items-center"
+            >
+              Settings
+            </button>
             {currentUser?.isAdmin && (
               <>
                 <span aria-hidden="true" className="text-border">•</span>
@@ -319,7 +316,7 @@ export default function App() {
         onNavigateCheatSheet={handleNavigateCheatSheet}
       />
 
-      {/* Clean Login Modal */}
+      {/* Clean Callsign Modal */}
       {isLoginModalOpen && (
         <LoginScreen
           isModal={true}
@@ -344,8 +341,26 @@ export default function App() {
         onCancel={() => setIsResetModalOpen(false)}
       />
 
+      {/* Change Callsign / Reset Progress Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        currentUser={currentUser}
+        onClose={() => setIsSettingsModalOpen(false)}
+        onCallsignChanged={(updated) => setCurrentUser(updated)}
+        onProgressReset={() => {
+          setProgress(loadProgress());
+          setCurrentUser(getCurrentUser());
+        }}
+        onFullReset={() => {
+          setCurrentUser(null);
+          setProgress(loadProgress());
+          setShowLoginScreen(false);
+        }}
+      />
+
       {/* AI Explainer Floating Widget */}
       <AskGitnautAI currentContext={`Stage ${selectedStageId}`} />
     </div>
   );
 }
+

@@ -1,9 +1,17 @@
 /**
- * Gitnaut Real Backend Authentication System
- * Backed by SQLite users & progress tables.
- * Sessions managed via secure httpOnly JWT cookies (no localStorage for user data).
+ * Gitnaut Pilot Profile System
+ * All pilot callsign and progress data stored in localStorage under a single key: 'gitnaut_state'.
+ * No server authentication, no passwords, no tokens, no server API calls.
  */
-import { getAggregatedStats, logActivityEvent } from './activityEvents';
+import { 
+  getGitnautState, 
+  setPilotCallsign, 
+  changePilotCallsign, 
+  hasSavedCallsign, 
+  saveGitnautState,
+  getLocalTodayDateStr,
+  GitnautState 
+} from './storage';
 
 export interface UserProfile {
   id: string;
@@ -23,21 +31,6 @@ export interface UserProfile {
   isAdmin?: boolean;
 }
 
-export interface BackendUser {
-  id: string;
-  email: string;
-  created_at: string;
-}
-
-export interface BackendProgress {
-  id: string;
-  user_id: string;
-  mission_id: string;
-  mastery: number;
-  streak: number;
-  updated_at: string;
-}
-
 export const ROLE_PERKS: Record<UserProfile['role'], string> = {
   'Junior Dev': 'Foundations: Step-by-step interactive command visualizer & syntax guides',
   'Full-Stack Ninja': 'Parallel Realities: Multi-branch checkout and clean merge conflict drills',
@@ -46,340 +39,129 @@ export const ROLE_PERKS: Record<UserProfile['role'], string> = {
   'Admin Operative': 'Flight Command: Global mission telemetry inspection enabled',
 };
 
-// Pure in-memory state — no user credentials or tokens in localStorage
-let inMemoryUser: UserProfile | null = null;
-let guestSessionActive = false;
+/**
+ * Derives a UserProfile object from the single localStorage GitnautState.
+ */
+export function stateToUserProfile(state: GitnautState | null): UserProfile | null {
+  if (!state || !state.callsign || !state.callsign.trim()) {
+    return null;
+  }
 
-export function buildUserProfile(user: BackendUser, progressList: BackendProgress[] = []): UserProfile {
-  const username = user.email.split('@')[0] || 'gitnaut';
-  const totalMastered = progressList.filter((p) => p.mastery > 0).length;
-  const maxStreak = progressList.reduce((max, p) => Math.max(max, p.streak || 0), 0);
-  const xp = totalMastered * 50 + maxStreak * 10;
-  const level = Math.floor(xp / 100) + 1;
+  const callsign = state.callsign.trim();
+  const safeId = 'pilot_' + (callsign.toLowerCase().replace(/[^a-z0-9]/g, '_') || 'pilot');
+  const xp = state.xp || 0;
+  const level = Math.max(1, state.level || Math.floor(xp / 100) + 1);
 
   return {
-    id: user.id,
-    username,
-    email: user.email,
-    displayName: username,
+    id: safeId,
+    username: callsign,
+    email: `${callsign.toLowerCase().replace(/\s+/g, '_')}@gitnaut.space`,
+    displayName: callsign,
     avatar: '',
     role: 'Junior Dev',
     specialPerk: ROLE_PERKS['Junior Dev'],
     xp,
     level,
-    joinedAt: user.created_at ? user.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
-    badges: totalMastered > 0 ? ['Recruit Onboarded', 'Star Scout'] : ['Cadet Enlisted'],
-    lastLogin: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    joinedAt: state.joinedAt || getLocalTodayDateStr(),
+    badges: state.badges || ['Recruit Onboarded'],
+    lastLogin: 'Active session',
   };
 }
 
+/**
+ * Returns current pilot profile from the single localStorage key.
+ */
 export function getCurrentUser(): UserProfile | null {
-  return inMemoryUser;
+  return stateToUserProfile(getGitnautState());
 }
 
+/**
+ * Checks if pilot callsign already exists in localStorage.
+ */
+export { hasSavedCallsign };
+
+/**
+ * Returns true if current callsign is "Guest".
+ */
 export function isGuestMode(): boolean {
-  return guestSessionActive;
-}
-
-export function setGuestMode(active: boolean): void {
-  guestSessionActive = active;
+  const state = getGitnautState();
+  return Boolean(state && state.callsign.toLowerCase() === 'guest');
 }
 
 /**
- * Validates session with backend /api/me (reads httpOnly JWT cookie)
+ * Sets pilot as Guest in localStorage.
  */
-export async function fetchCurrentUser(): Promise<UserProfile | null> {
-  try {
-    const res = await fetch('/api/me', {
-      method: 'GET',
-      credentials: 'include',
-    });
-
-    if (!res.ok) {
-      inMemoryUser = null;
-      return null;
-    }
-
-    const data = await res.json();
-    if (data.user) {
-      // Also fetch progress for user to restore mastery stats
-      let progressList: BackendProgress[] = [];
-      try {
-        const progressRes = await fetch('/api/progress', {
-          method: 'GET',
-          credentials: 'include',
-        });
-        if (progressRes.ok) {
-          const pData = await progressRes.json();
-          progressList = pData.progress || [];
-        }
-      } catch {
-        // progress fetch optional on init
-      }
-
-      const profile = buildUserProfile(data.user, progressList);
-      inMemoryUser = profile;
-      guestSessionActive = false;
-      return profile;
-    }
-
-    inMemoryUser = null;
-    return null;
-  } catch {
-    inMemoryUser = null;
-    return null;
-  }
+export function setGuestMode(_active: boolean = true): UserProfile {
+  const updatedState = setPilotCallsign('Guest');
+  return stateToUserProfile(updatedState)!;
 }
 
 /**
- * Authenticate directly with Pilot Name (no password barrier)
+ * Launches the pilot with a callsign. Pure client-side, zero server calls.
  */
-export async function loginWithPilotName(
-  pilotName: string
-): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
-  const trimmed = pilotName.trim();
-  if (!trimmed) {
-    return { success: false, error: 'Please enter your name, pilot.' };
-  }
-
-  try {
-    const res = await fetch('/api/pilot-login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({ name: trimmed }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return { success: false, error: data.error || 'Failed to authenticate pilot' };
-    }
-
-    if (data.user) {
-      let progressList: BackendProgress[] = [];
-      try {
-        const pRes = await fetch('/api/progress', {
-          method: 'GET',
-          credentials: 'include',
-        });
-        if (pRes.ok) {
-          const pData = await pRes.json();
-          progressList = pData.progress || [];
-        }
-      } catch {
-        // ignore
-      }
-
-      const profile = buildUserProfile(data.user, progressList);
-      profile.displayName = trimmed;
-      profile.username = trimmed;
-      inMemoryUser = profile;
-      guestSessionActive = false;
-      return { success: true, user: profile };
-    }
-
-    return { success: false, error: 'Invalid response from server' };
-  } catch {
-    const profile = buildUserProfile(
-      {
-        id: 'usr_' + Date.now(),
-        email: `${trimmed.toLowerCase().replace(/\s+/g, '_')}@gitnaut.space`,
-        created_at: new Date().toISOString(),
-      },
-      []
-    );
-    profile.displayName = trimmed;
-    profile.username = trimmed;
-    inMemoryUser = profile;
-    guestSessionActive = false;
-    return { success: true, user: profile };
-  }
+export function launchPilot(callsign: string): UserProfile {
+  const updatedState = setPilotCallsign(callsign);
+  return stateToUserProfile(updatedState)!;
 }
 
 /**
- * Authenticate with real backend POST /api/login
+ * Updates callsign in settings.
  */
-export async function authenticateWithEmail(
-  email: string,
-  passwordPlain: string
-): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
-  try {
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        email: email.trim(),
-        password: passwordPlain,
-      }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      return {
-        success: false,
-        error: data.error || 'Invalid credentials',
-      };
-    }
-
-    if (data.user) {
-      let progressList: BackendProgress[] = [];
-      try {
-        const pRes = await fetch('/api/progress', {
-          method: 'GET',
-          credentials: 'include',
-        });
-        if (pRes.ok) {
-          const pData = await pRes.json();
-          progressList = pData.progress || [];
-        }
-      } catch {
-        // ignore
-      }
-
-      const profile = buildUserProfile(data.user, progressList);
-      inMemoryUser = profile;
-      guestSessionActive = false;
-      return { success: true, user: profile };
-    }
-
-    return { success: false, error: 'Invalid response from server' };
-  } catch {
-    return { success: false, error: 'Unable to connect to authentication server' };
-  }
+export function updateCallsign(newCallsign: string): UserProfile {
+  const updatedState = changePilotCallsign(newCallsign);
+  return stateToUserProfile(updatedState)!;
 }
 
 /**
- * Register with real backend POST /api/signup
+ * Clears the callsign to return to the onboarding screen.
  */
-export async function registerNewUser(params: {
-  name?: string;
-  email: string;
-  password: string;
-}): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
-  try {
-    const res = await fetch('/api/signup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        email: params.email.trim(),
-        password: params.password,
-      }),
+export function logoutUser(): void {
+  if (typeof window === 'undefined') return;
+  const state = getGitnautState();
+  if (state) {
+    saveGitnautState({
+      ...state,
+      callsign: '',
     });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      return {
-        success: false,
-        error: data.error || 'Registration failed',
-      };
-    }
-
-    if (data.user) {
-      const profile = buildUserProfile(data.user, []);
-      if (params.name && params.name.trim()) {
-        profile.displayName = params.name.trim();
-      }
-      inMemoryUser = profile;
-      guestSessionActive = false;
-      return { success: true, user: profile };
-    }
-
-    return { success: false, error: 'Invalid response from server' };
-  } catch {
-    return { success: false, error: 'Unable to connect to authentication server' };
-  }
-}
-
-/**
- * Clear session cookie via POST /api/logout
- */
-export async function logoutUser(): Promise<void> {
-  try {
-    await fetch('/api/logout', {
-      method: 'POST',
-      credentials: 'include',
-    });
-  } catch {
-    // ignore
-  } finally {
-    inMemoryUser = null;
-    guestSessionActive = false;
-  }
-}
-
-/**
- * Load progress from real backend GET /api/progress
- */
-export async function fetchBackendProgress(): Promise<BackendProgress[]> {
-  try {
-    const res = await fetch('/api/progress', {
-      method: 'GET',
-      credentials: 'include',
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.progress || [];
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Save progress to real backend POST /api/progress
- */
-export async function saveBackendProgress(
-  items: Array<{ mission_id: string; mastery: number; streak: number }>
-): Promise<boolean> {
-  try {
-    const res = await fetch('/api/progress', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify(items),
-    });
-    return res.ok;
-  } catch {
-    return false;
   }
 }
 
 export function getAllUsers(): UserProfile[] {
-  return inMemoryUser ? [inMemoryUser] : [];
+  const current = getCurrentUser();
+  return current ? [current] : [];
 }
 
 export function addXP(points: number): UserProfile | null {
-  if (!inMemoryUser) return null;
-  logActivityEvent({
-    type: 'drill',
-    xp: points,
-  });
-  const stats = getAggregatedStats();
-  inMemoryUser.xp = stats.xp;
-  inMemoryUser.level = Math.floor(stats.xp / 100) + 1;
-  return inMemoryUser;
+  const state = getGitnautState();
+  if (!state) return null;
+
+  const nextXP = Math.max(0, (state.xp || 0) + points);
+  const nextLevel = Math.floor(nextXP / 100) + 1;
+
+  const updated: GitnautState = {
+    ...state,
+    xp: nextXP,
+    level: nextLevel,
+  };
+
+  saveGitnautState(updated);
+  return stateToUserProfile(updated);
 }
 
 export function unlockBadge(badgeName: string): boolean {
-  if (!inMemoryUser) return false;
-  if (!inMemoryUser.badges.includes(badgeName)) {
-    inMemoryUser.badges.push(badgeName);
-    logActivityEvent({
-      type: 'mission',
-      xp: 50,
-    });
+  const state = getGitnautState();
+  if (!state) return false;
+
+  if (!state.badges.includes(badgeName)) {
+    const updated: GitnautState = {
+      ...state,
+      badges: [...state.badges, badgeName],
+      xp: (state.xp || 0) + 50,
+      level: Math.floor(((state.xp || 0) + 50) / 100) + 1,
+    };
+    saveGitnautState(updated);
     return true;
   }
+
   return false;
 }

@@ -26,6 +26,7 @@ interface HeaderProps {
   onNavigateCheatSheet: () => void;
   onNavigateAdmin: () => void;
   onResetProgress: () => void;
+  onOpenSettings?: () => void;
   onOpenAuth: () => void;
   onUserLoggedOut: () => void;
 }
@@ -37,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigatePractice,
   onNavigateCheatSheet,
   onResetProgress,
+  onOpenSettings,
   onOpenAuth,
   onUserLoggedOut,
 }) => {
@@ -79,21 +81,21 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-surface border-b border-border transition-colors">
-      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3 min-w-0">
+    <header className="sticky top-0 z-40 w-full bg-surface border-b border-border transition-colors overflow-x-hidden">
+      <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 min-w-0">
         {/* Left: Brand Logo */}
         <button
           onClick={() => {
             playSound('click');
             onNavigateLearn();
           }}
-          className="flex items-center gap-2.5 text-left transition-opacity hover:opacity-90 focus:outline-none shrink-0 cursor-pointer min-h-[44px]"
+          className="flex items-center gap-2 text-left transition-opacity hover:opacity-90 focus:outline-none shrink-0 cursor-pointer min-h-[44px]"
           aria-label="Gitnaut home"
         >
-          <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-accent-ink shadow-xs">
+          <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-accent-ink shadow-xs shrink-0">
             <Compass className="w-5 h-5 text-accent-ink" strokeWidth={1.75} />
           </div>
-          <span className="font-heading font-bold text-xl text-text tracking-normal leading-tight">
+          <span className="font-heading font-bold text-lg sm:text-xl text-text tracking-normal leading-tight">
             Gitnaut
           </span>
         </button>
@@ -128,35 +130,51 @@ export const Header: React.FC<HeaderProps> = ({
         </nav>
 
         {/* Right Area */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0" ref={menuRef}>
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0" ref={menuRef}>
+          {/* Exit Guest Mode direct button */}
+          {currentUser?.displayName?.toLowerCase() === 'guest' && (
+            <button
+              onClick={handleLogout}
+              className="text-xs font-semibold text-danger hover:text-danger/90 bg-danger/10 hover:bg-danger/20 border border-danger/30 px-2 sm:px-3 py-1.5 rounded-[8px] cursor-pointer min-h-[36px] sm:min-h-[40px] flex items-center gap-1.5 transition-colors"
+              title="Exit guest mode and return to 1st page"
+              aria-label="Exit guest mode"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Exit Guest</span>
+            </button>
+          )}
+
           {/* Audio toggle */}
           <button
             onClick={handleToggleSound}
-            className="flex min-w-[44px] min-h-[44px] items-center justify-center rounded-[10px] border border-border bg-surface-2 hover:bg-border text-text-muted hover:text-text transition-colors cursor-pointer"
+            className="flex min-w-[36px] sm:min-w-[40px] min-h-[36px] sm:min-h-[40px] items-center justify-center rounded-[10px] border border-border bg-surface-2 hover:bg-border text-text-muted hover:text-text transition-colors cursor-pointer"
             title={sound ? 'Mute sound effects' : 'Enable sound effects'}
             aria-label="Toggle sound"
           >
-            {sound ? <Volume2 className="w-5 h-5 text-current" strokeWidth={1.75} /> : <VolumeX className="w-5 h-5 text-current" strokeWidth={1.75} />}
+            {sound ? <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-current" strokeWidth={1.75} /> : <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 text-current" strokeWidth={1.75} />}
           </button>
 
           {/* Avatar & Account Dropdown Menu */}
           <div className="relative">
             <button
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="min-h-[44px] min-w-[44px] flex items-center justify-center p-1 sm:px-3 sm:py-1 rounded-[10px] border border-border bg-surface-2 hover:bg-border text-sm font-semibold text-text cursor-pointer transition-colors gap-2"
+              className="min-h-[36px] sm:min-h-[40px] flex items-center justify-center px-2 sm:px-3 py-1 rounded-[10px] border border-border bg-surface-2 hover:bg-border text-xs sm:text-sm font-semibold text-text cursor-pointer transition-colors gap-1.5 sm:gap-2 max-w-[130px] sm:max-w-[180px]"
               aria-label="User account menu"
             >
               {currentUser ? (
                 <>
-                  <span className="hidden sm:inline-block truncate max-w-[100px]">{currentUser.displayName}</span>
-                  <span className="w-7 h-7 rounded-[8px] bg-accent text-accent-ink flex items-center justify-center font-bold text-sm shrink-0">
-                    <User className="w-4 h-4 text-accent-ink" strokeWidth={1.75} />
+                  <span className="inline-block truncate max-w-[65px] sm:max-w-[110px] text-xs sm:text-sm">{currentUser.displayName}</span>
+                  <span className="w-6 h-6 rounded-[8px] bg-accent text-accent-ink flex items-center justify-center font-bold text-xs shrink-0">
+                    <User className="w-3.5 h-3.5 text-accent-ink" strokeWidth={1.75} />
                   </span>
                 </>
               ) : (
-                <span className="w-7 h-7 rounded-[8px] bg-surface border border-border flex items-center justify-center text-text-muted shrink-0">
-                  <User className="w-4 h-4 text-current" strokeWidth={1.75} />
-                </span>
+                <>
+                  <span className="text-xs sm:text-sm font-medium text-text-muted">Guest</span>
+                  <span className="w-6 h-6 rounded-[8px] bg-surface border border-border flex items-center justify-center text-text-muted shrink-0">
+                    <User className="w-3.5 h-3.5 text-current" strokeWidth={1.75} />
+                  </span>
+                </>
               )}
             </button>
 
@@ -167,13 +185,63 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="font-bold text-sm text-text truncate">
                     {currentUser?.displayName || 'Cadet Explorer'}
                   </div>
-                  <div className="text-sm text-text-muted truncate">
-                    {currentUser?.email || 'Guest Session'}
+                  <div className="text-xs text-text-muted truncate">
+                    {currentUser?.displayName?.toLowerCase() === 'guest' ? 'Guest Explorer Session' : currentUser?.email}
                   </div>
-                  <div className="text-sm text-accent font-semibold mt-1">
+                  <div className="text-xs text-accent font-semibold mt-1">
                     Mastered: {stats.masteredCount} of 37 Commands
                   </div>
                 </div>
+
+                {/* When in guest mode: highlight Set Callsign & Exit Guest */}
+                {currentUser?.displayName?.toLowerCase() === 'guest' ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        if (onOpenSettings) onOpenSettings();
+                      }}
+                      className="w-full text-left px-3 py-2.5 text-sm font-bold text-accent hover:bg-surface-2 rounded-[10px] flex items-center gap-2 min-h-[44px] cursor-pointer transition-colors"
+                    >
+                      <User className="w-4 h-4 text-accent" strokeWidth={2} />
+                      <span>Enter your pilot name</span>
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-3 py-2.5 text-sm font-semibold text-danger hover:bg-surface-2 rounded-[10px] flex items-center gap-2 min-h-[44px] cursor-pointer transition-colors"
+                    >
+                      <LogOut className="w-4 h-4 text-danger" strokeWidth={2} />
+                      <span>Exit Guest mode (1st page)</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* Change callsign / Settings */}
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        if (onOpenSettings) {
+                          onOpenSettings();
+                        } else {
+                          onResetProgress();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2.5 text-sm text-text hover:bg-surface-2 rounded-[10px] flex items-center gap-2 min-h-[44px] cursor-pointer transition-colors"
+                    >
+                      <User className="w-4 h-4 text-link" strokeWidth={1.75} />
+                      <span>Change callsign / settings</span>
+                    </button>
+
+                    {/* Switch pilot */}
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-3 py-2.5 text-sm text-text-muted hover:text-danger hover:bg-surface-2 rounded-[10px] flex items-center gap-2 min-h-[44px] cursor-pointer transition-colors"
+                    >
+                      <LogOut className="w-4 h-4 text-current" strokeWidth={1.75} />
+                      <span>Switch pilot / Log out</span>
+                    </button>
+                  </>
+                )}
 
                 {/* Mobile: Sound Toggle inside Menu */}
                 <button
@@ -198,28 +266,6 @@ export const Header: React.FC<HeaderProps> = ({
                   <RotateCcw className="w-4 h-4 text-current" strokeWidth={1.75} />
                   <span>Reset progress</span>
                 </button>
-
-                {/* Log out or Log in */}
-                {currentUser ? (
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-3 py-2.5 text-sm text-danger hover:bg-surface-2 rounded-[10px] flex items-center gap-2 min-h-[44px] cursor-pointer transition-colors"
-                  >
-                    <LogOut className="w-4 h-4 text-current" strokeWidth={1.75} />
-                    <span>Log out</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setIsUserMenuOpen(false);
-                      onOpenAuth();
-                    }}
-                    className="w-full text-left px-3 py-2.5 text-sm text-accent font-bold hover:bg-surface-2 rounded-[10px] flex items-center gap-2 min-h-[44px] cursor-pointer transition-colors"
-                  >
-                    <LogIn className="w-4 h-4 text-current" strokeWidth={1.75} />
-                    <span>Log in / Sign up</span>
-                  </button>
-                )}
               </div>
             )}
           </div>
