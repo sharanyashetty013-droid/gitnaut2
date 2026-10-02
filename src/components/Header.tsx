@@ -131,18 +131,16 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Area */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0" ref={menuRef}>
-          {/* Exit Guest Mode direct button */}
-          {currentUser?.displayName?.toLowerCase() === 'guest' && (
-            <button
-              onClick={handleLogout}
-              className="text-xs font-semibold text-danger hover:text-danger/90 bg-danger/10 hover:bg-danger/20 border border-danger/30 px-2 sm:px-3 py-1.5 rounded-[8px] cursor-pointer min-h-[36px] sm:min-h-[40px] flex items-center gap-1.5 transition-colors"
-              title="Exit guest mode and return to 1st page"
-              aria-label="Exit guest mode"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Exit Guest</span>
-            </button>
-          )}
+          {/* Direct Exit button for ANY pilot (Named or Guest) */}
+          <button
+            onClick={handleLogout}
+            className="text-xs font-semibold text-danger hover:text-danger/90 bg-danger/10 hover:bg-danger/20 border border-danger/30 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-[8px] cursor-pointer min-h-[36px] sm:min-h-[40px] flex items-center gap-1.5 transition-colors"
+            title="Exit flight deck and return to 1st page"
+            aria-label="Exit flight deck"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Exit</span>
+          </button>
 
           {/* Audio toggle */}
           <button
@@ -232,13 +230,13 @@ export const Header: React.FC<HeaderProps> = ({
                       <span>Change callsign / settings</span>
                     </button>
 
-                    {/* Switch pilot */}
+                    {/* Exit to 1st page */}
                     <button
                       onClick={handleLogout}
-                      className="w-full text-left px-3 py-2.5 text-sm text-text-muted hover:text-danger hover:bg-surface-2 rounded-[10px] flex items-center gap-2 min-h-[44px] cursor-pointer transition-colors"
+                      className="w-full text-left px-3 py-2.5 text-sm font-semibold text-danger hover:bg-surface-2 rounded-[10px] flex items-center gap-2 min-h-[44px] cursor-pointer transition-colors"
                     >
-                      <LogOut className="w-4 h-4 text-current" strokeWidth={1.75} />
-                      <span>Switch pilot / Log out</span>
+                      <LogOut className="w-4 h-4 text-danger" strokeWidth={1.75} />
+                      <span>Exit to 1st page</span>
                     </button>
                   </>
                 )}
