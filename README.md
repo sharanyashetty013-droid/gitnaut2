@@ -1,4 +1,4 @@
-# 🚀 Gitnaut
+#  Gitnaut
 
 **Learn Git by doing, not by memorizing.**
 
@@ -10,7 +10,7 @@ Gitnaut is an interactive, space-themed Git course. Fix real repo problems, watc
 ![three.js](https://img.shields.io/badge/three.js-3D-000000?logo=threedotjs&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Gemini-AI_tutor-8E75B2?logo=googlegemini&logoColor=white)
 
-## ✨ What's inside
+##  What's inside
 
 - 📚 **8 stages**, from `git init` to rebase and tags
 - ⌨️ **37 commands**, each explained in plain English
@@ -20,7 +20,7 @@ Gitnaut is an interactive, space-themed Git course. Fix real repo problems, watc
 - 🔥 **Streaks and XP** to keep you going
 - 📋 **Cheat sheet** with one-click copy
 
-## 🚀 Run it
+##  Run it
 
 ```bash
 git clone https://github.com/sharanyashetty013-droid/gitnaut.git
@@ -30,11 +30,11 @@ cp .env.example .env   # add your GEMINI_API_KEY
 npm run dev
 ```
 
-## 🧱 Built with
+##  Built with
 
 React · TypeScript · Vite · Tailwind CSS · three.js · Express · Google Gemini
 
-## 👩‍💻 Author
+##  Author
 
 Made by **Sharanya L Shetty** · [GitHub](https://github.com/sharanyashetty013-droid)
 
