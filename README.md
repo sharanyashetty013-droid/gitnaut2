@@ -10,7 +10,7 @@ Gitnaut is an interactive, space-themed Git course. Fix real repo problems, watc
 ![three.js](https://img.shields.io/badge/three.js-3D-000000?logo=threedotjs&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Gemini-AI_tutor-8E75B2?logo=googlegemini&logoColor=white)
 
-##  What's inside
+##  What is inside
 
 - 📚 **8 stages**, from `git init` to rebase and tags
 - ⌨️ **37 commands**, each explained in plain English
