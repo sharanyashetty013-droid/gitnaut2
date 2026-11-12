@@ -12,7 +12,7 @@ Gitnaut is an interactive, space-themed Git course. Fix real repo problems, watc
 
 ##  What is inside
 
-- 📚 **8 stages**, from `git init` to rebase and tags
+- **8 stages**, from `git init` to rebase and tags
 - ⌨️ **37 commands**, each explained in plain English
 - 🛰️ **Missions** that fix leaked secrets and merge conflicts
 - 🌠 **3D commit graphs** you can explore
